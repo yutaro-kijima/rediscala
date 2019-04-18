@@ -15,10 +15,10 @@ object Server {
     while (true) {
       val input = new BufferedSource(socket.getInputStream()).getLines()
       val output = new PrintStream(socket.getOutputStream)
-      if(input.hasNext) {
+      if (input.hasNext) {
         val commands = getInput(input, Nil)
         println(commands)
-        output.print(exec(commands)+CRLF)
+        output.print(exec(commands) + CRLF)
         output.flush()
       }
     }
@@ -26,10 +26,10 @@ object Server {
   }
 
 
-  def exec(commands:List[Any]): String = commands(0).asInstanceOf[String].toUpperCase match{
+  def exec(commands: List[Any]): String = commands(0).asInstanceOf[String].toUpperCase match {
     case "PING" => "+PONG"
     case "EXISTS" => "0"
-    case "SET" => store.set(commands(1).asInstanceOf[String], commands(2))
+    case "SET" => set(commands)
     case "GET" => "+" + store.get(commands(1).asInstanceOf[String]).toString
     case "COMMAND" => "+0"
     case _ => "+a"
@@ -63,17 +63,39 @@ object Server {
     }
   }
 
-  object store {
-    var data:Map[String, Any] = Map()
+  def set(commands: List[Any]): String = commands match {
+    case key :: value :: option => setWithOption(key, value, option.asInstanceOf[String])
+    case key :: value => store.set(key.asInstanceOf[String], value)
+  }
 
-    def set(key:String, value:Any):String = {
+  def setWithOption(key: Any, value: Any, option: String): String = option.toUpperCase match {
+    case "NX" => store.setNX(key, value)
+    case "XX" => store.setXX(key, value)
+    case _ => List("-", "*3", "$6", "option", "$3", "Not", "$9", "Supported").mkString(CRLF)
+  }
+
+  object store {
+    var data: Map[Any, Any] = Map()
+
+    def set(key: Any, value: Any): String = {
       println("SET")
       data = data + (key -> value)
       "+OK"
     }
 
-    def get(key:String):Any = {
-      data.getOrElse(key, "-Error Record Not Found")
+    def setNX(key: Any, value: Any): String = {
+      "+OK"
+    }
+
+    def setXX(key: Any, value: Any): String = {
+      "+OK"
+    }
+
+    def get(key: String): Any = {
+      data.getOrElse(
+        key,
+        List("-", "*4", "$5", "Error", "$6", "Record", "$3", "Not", "$5", "Found").mkString(CRLF)
+      )
     }
   }
 }
