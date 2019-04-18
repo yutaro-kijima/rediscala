@@ -15,17 +15,26 @@ object Server {
     while (true) {
       val input = new BufferedSource(socket.getInputStream()).getLines()
       val output = new PrintStream(socket.getOutputStream)
-      println(getInput(input, Nil))
-      output.print("+PONG" + CRLF)
-      output.flush()
+      if(input.hasNext) {
+        val commands = getInput(input, Nil)
+        println(commands)
+        output.print(exec(commands)+CRLF)
+        output.flush()
+      }
     }
     socket.close()
   }
 
-  /*
-  def exec(str:String): String = {
+
+  def exec(commands:List[Any]): String = commands(0).asInstanceOf[String].toUpperCase match{
+    case "PING" => "+PONG"
+    case "EXISTS" => "0"
+    case "SET" => store.set(commands(1).asInstanceOf[String], commands(2))
+    case "GET" => "+" + store.get(commands(1).asInstanceOf[String]).toString
+    case "COMMAND" => "+0"
+    case _ => "+a"
   }
-  */
+
 
   //CRLFでsplitされたPESP配列からコマンドだけの配列を返す [*3,$5,index,$4,desc,$2,ss]
   def getInput(input: Iterator[String], commands: List[Any]): List[Any] = {
@@ -52,10 +61,19 @@ object Server {
         case _ => getInputWithLength(input, commands :+ head.toInt, length)
       }
     }
-
   }
 
-  def exec(commandsList: List[String]): String = {
+  object store {
+    var data:Map[String, Any] = Map()
 
+    def set(key:String, value:Any):String = {
+      println("SET")
+      data = data + (key -> value)
+      "+OK"
+    }
+
+    def get(key:String):Any = {
+      data.getOrElse(key, "-Error Record Not Found")
+    }
   }
 }
