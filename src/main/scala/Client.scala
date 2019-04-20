@@ -1,6 +1,7 @@
 import java.io.PrintStream
 import java.net.{InetAddress, Socket}
 
+import scala.collection.immutable.Map
 import scala.io.BufferedSource
 
 object Client {
@@ -11,67 +12,48 @@ object Client {
     lazy val input = new BufferedSource(socket.getInputStream()).getLines()
     val out = new PrintStream(socket.getOutputStream())
 
-    def getInput(input: Iterator[String], commands: List[Any]): List[Any] = {
-      val head = input.next()
-      println(head)
-      head.toCharArray.toList match {
-        case List('+', _*) => List(head)
-        case List(':', _*) => getInput(input, commands :+ head.diff(":").toInt)
-        case Nil => commands
-        case List('*', i, _*) => getInputWithLength(input, Nil, i - '0')
-        case List('$', '-', '1', _*) => getInput(input, commands :+ null)
-        case List('$', _*) => getInput(input, commands :+ input.next())
-        case _ => getInput(input, commands :+ head.toInt)
-      }
-    }
-
-    def getInputWithLength(input: Iterator[String], commands: List[Any], length: Int): List[Any] = {
-      if (commands.length == length) {
-        commands
-      } else {
-        val head = input.next()
-        println(head)
-        head.toCharArray.toList match {
-          case Nil => commands
-          case List('$', '-', '1', _*) => getInputWithLength(input, commands :+ null, length)
-          case List('$', _*) => getInputWithLength(input, commands :+ input.next(), length)
-          case List(':', _*) => getInputWithLength(input, commands :+ head.diff(":").toInt, length)
-          case _ => getInputWithLength(input, commands :+ head.toInt, length)
-        }
+    def getInput(input: String): String = {
+      input.toCharArray.toList match {
+        case List('+', _*) => input.diff("+")
+        case List(':', _*) => input.diff(":")
+        case List('$', '-', '1', _*) => null
+        case _ => "?"
       }
     }
 
     val numberStream = Stream.from(0).iterator
-    while (true) {
-      val count = numberStream.next()
-      out.println(
+    while (numberStream.next() <= 11) {
+      val count = numberStream.next().toString
+      out.print(
         "*3" + CRLF +
           "$3" + CRLF +
           "SET" + CRLF +
-          ":" + count.toString + CRLF +
-          ":" + count.toString + CRLF)
-      out.flush()
-      out.println(
+          ":" + count + CRLF +
+          ":" + count + CRLF)
+      println(s"client> SET ${count} ${count}")
+      println("server>" + input.next())
+      out.print(
         "*3" + CRLF +
           "$3" + CRLF +
           "incrby" + CRLF +
           ":" + count.toString + CRLF +
           ":" + count.toString + CRLF)
-      out.flush()
-      out.println(
+      println(s"client> INCRBY ${count} ${count}")
+      println("server>set "+input.next())
+      out.print(
         "*2" + CRLF +
           "$3" + CRLF +
           "get" + CRLF +
           ":" + count.toString + CRLF)
-      out.println(
+      println(s"client> GET ${count}")
+      println(input.next())
+      out.print(
         "*2" + CRLF +
           "$3" + CRLF +
           "exists" + CRLF +
           ":" + count.toString + CRLF)
-      out.flush()
-      while(input.hasNext){
-        println(getInput(input,Nil))
-      }
+      println(s"client> EXISTS ${count}")
+      println(input.next())
     }
     socket.close()
   }
