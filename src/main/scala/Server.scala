@@ -6,12 +6,12 @@ import scala.io.BufferedSource
 object Server {
   val CRLF = "\r\n"
   lazy val store = new ThreadLocal[Map[Any, Any]] {
-    override def initialValue(): Map[Any, Any] = Map()
+   override def initialValue(): Map[Any, Any] = Map()
   }
 
   def main(args: Array[String]): Unit = {
-    //サーバーソケットを生成しポート番号をバインドする
     val serverSocket = new ServerSocket(4545)
+    println("listen on port: 4545")
 
     while (true) {
       val socket: Socket = serverSocket.accept()
@@ -27,11 +27,15 @@ object Server {
       val commands = getInput(input, Nil)
       if (commands != Nil) {
         println("commands:" + commands)
-        output.print(encode(exec(commands)) + CRLF)
+        val res = encode(exec(commands))
+        output.print(res + CRLF)
         output.flush()
         println(store.get())
+        println(res)
       }
     }
+
+    socket.close()
 
     def exec(commands: List[Any]): Any = commands.head.asInstanceOf[String].toUpperCase match {
       case "PING" => if (commands.length == 1) "PONG" else commands(1)
@@ -76,10 +80,13 @@ object Server {
     }
 
     def encode(res: Any): String = res match {
+      case "$-1" => "$-1"
       case List("-", i: String) => "-" + i
       case i: String => "+" + i
       case i: Long => ":" + i.toString
-      case i: Any => "+" + i.toString
+      case i: Int => ":" + i.toString
+      case i: Number => ":" + i.toString
+      case i: Any => ":" + i.toString
     }
 
     def tryToLong(str: String): Option[Long] = {
@@ -88,6 +95,7 @@ object Server {
     }
 
     def toLongIfAble(value: Any): Any = value match {
+      case i: Int => i.toLong
       case i: Long => i
       case s: String => tryToLong(s).getOrElse(value)
       case _ => value
@@ -116,56 +124,82 @@ object Server {
       }
 
       def setNX(key: Any, value: Any): Any = {
+        println("SETNX")
         val data = store.get()
         if (data.contains(key)) {
-          0
+          0.asInstanceOf[Long]
         } else {
           set(key, value)
+          1.asInstanceOf[Long]
         }
       }
 
       def setXX(key: Any, value: Any): Any = {
+        println("SETXX")
         val data = store.get()
         if (data.contains(key)) {
           set(key, value)
+          1
         } else {
           0
         }
       }
 
-      def get(key: Any): Any = {
+      def get(key: Any): String = {
         println("get")
         val data = store.get()
-        data.getOrElse(key, "-") match {
-          case "-" => List("-", "Data not found")
-          case i: Any => i
+        data.getOrElse(key, "$-1").toString
+      }
+
+      def getNumber(key: Any): Option[Long] = {
+        val data = store.get()
+        data.getOrElse(key, null) match {
+          case null => null
+          case i: String => tryToLong(i)
+          case i: Long => Option(i)
+          case i: Int => Option(i)
+          case _ => null
         }
       }
 
       def incrBy(key: Any, by: Long): Any = {
         println("incrby")
         val data = store.get()
-        val num = data.getOrElse(key, 0).asInstanceOf[Long]
-        store.set(data + (key -> (by + num)))
-        get(key)
+
+        def pass(i: Long): Any = {
+          store.set(data + (key -> (i + by)))
+          getNumber(key).getOrElse("$-1")
+        }
+
+        getNumber(key).getOrElse(null) match {
+          case null => "$-1"
+          case i: Long => pass(i)
+        }
       }
 
       def decrBy(key: Any, by: Long): Any = {
         println("decrby")
         val data = store.get()
-        val num = data.getOrElse(key, 0).asInstanceOf[Long]
-        store.set(data + (key -> (by + num)))
-        get(key)
+
+        def pass(i: Long): Any = {
+          store.set(data + (key -> (i - by)))
+          getNumber(key).getOrElse("$-1")
+        }
+
+        getNumber(key).getOrElse(null) match {
+          case null => "$-1"
+          case i: Long => pass(i)
+        }
       }
 
-      def delete(keys: List[Any]): Int = {
+      def delete(keys: List[Any]): Long = {
         val data = store.get()
         val preSize = data.size
         store.set(data -- keys)
-        preSize - data.size
+        preSize - store.get().size
       }
 
-      def exists(keys: List[Any]): Int = {
+      def exists(keys: List[Any]): Long = {
         println("exists")
         val data = store.get()
         data.size - (data -- keys).size
