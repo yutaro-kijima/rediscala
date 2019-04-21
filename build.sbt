@@ -5,7 +5,7 @@ lazy val commonSettings = Seq(
   test in assembly := {}
 )
 
-lazy val app = (project in file(".")).
+lazy val app = (project in file("Server")).
   settings(commonSettings: _*).
   settings(
     mainClass in assembly := Some("Server"),
@@ -13,12 +13,8 @@ lazy val app = (project in file(".")).
     // more settings here ...
   )
 
-/* 
-
-  lazy val client = (project in file(".")).
+  lazy val client = (project in file("Client")).
   settings(
     mainClass in(Compile, run) := Some("Client")
   )
-  
- */
 
