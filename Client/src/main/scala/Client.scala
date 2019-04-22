@@ -8,10 +8,10 @@ object Client {
 
     def getInput(input: String): String = {
       input.toCharArray.toList match {
-        case List('+', _*) => input.diff("+")
-        case List(':', _*) => input.diff(":")
+        case List('+', _*)           => input.diff("+")
+        case List(':', _*)           => input.diff(":")
         case List('$', '-', '1', _*) => null
-        case _ => "?"
+        case _                       => "?"
       }
     }
 
@@ -23,7 +23,8 @@ object Client {
           "$3" + CRLF +
           "SET" + CRLF +
           ":" + count + CRLF +
-          ":" + count + CRLF)
+          ":" + count + CRLF
+      )
       println(s"client> SET ${count} ${count}")
       println("server>" + input.next())
       out.print(
@@ -31,21 +32,24 @@ object Client {
           "$3" + CRLF +
           "incrby" + CRLF +
           ":" + count.toString + CRLF +
-          ":" + count.toString + CRLF)
+          ":" + count.toString + CRLF
+      )
       println(s"client> INCRBY ${count} ${count}")
-      println("server>set "+input.next())
+      println("server>set " + input.next())
       out.print(
         "*2" + CRLF +
           "$3" + CRLF +
           "get" + CRLF +
-          ":" + count.toString + CRLF)
+          ":" + count.toString + CRLF
+      )
       println(s"client> GET ${count}")
       println(input.next())
       out.print(
         "*2" + CRLF +
           "$3" + CRLF +
           "exists" + CRLF +
-          ":" + count.toString + CRLF)
+          ":" + count.toString + CRLF
+      )
       println(s"client> EXISTS ${count}")
       println(input.next())
     }
